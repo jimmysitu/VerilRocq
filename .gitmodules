@@ -1,0 +1,3 @@
+[submodule "dep/coqutil"]
+	path = dep/coqutil
+	url = git@github.com:mit-plv/coqutil.git
