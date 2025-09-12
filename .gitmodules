@@ -1,0 +1,6 @@
+[submodule "dep/coqutil"]
+	path = dep/coqutil
+	url = git@github.com:mit-plv/coqutil.git
+[submodule "dep/riscv-coq"]
+	path = dep/riscv-coq
+	url = git@github.com:mit-plv/riscv-coq.git

@@ -1,0 +1,3 @@
+-R . Pfv
+-R ../dep/coqutil/src/coqutil/ coqutil
+-R ../dep/riscv-coq/src/riscv/ riscv
