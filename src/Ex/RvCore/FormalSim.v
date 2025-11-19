@@ -309,7 +309,7 @@ Section proof.
       - (* base case *)
         assert (FormalSpec.formal_initial_imem nil = FormalSpec.zeroed) as -> by reflexivity.
         epose proof (FormalSpec.zeroed_load_bytes _ _) as (? & -> & Hcomb). eexists. split; [reflexivity|].
-        rewrite Hcomb. reflexivity.
+        exact Hcomb.
       - (* inductive case *)
         destruct IH as (tup_prev & Hprev_acc & Harr_select).
         { apply Forall_inv_tail in IMEM_OK. exact IMEM_OK. }
@@ -361,7 +361,10 @@ Section proof.
     assert (dmem_related (getDataMem f1) (Spec.dcache_v sf1)) as DMEM_REL.
     { rewrite Hf1, Hsf1. unfold dmem_related. cbn. unfold mem_related. intros.
       epose proof (FormalSpec.zeroed_load_bytes _ _) as (? & -> & Hcomb). eexists. split; [eauto|].
-      rewrite Hcomb. cbn. dest_if; reflexivity. }
+      cbn. dest_if.
+      - exact Hcomb.
+      - exact Hcomb.
+    }
 
     assert (rf_related (getRegs f1) (Spec.rf_v sf1)) as RF_REL.
     { rewrite Hf1, Hsf1. unfold rf_related. cbn. intros k NEQ.
