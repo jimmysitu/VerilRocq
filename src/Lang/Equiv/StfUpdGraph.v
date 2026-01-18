@@ -110,9 +110,9 @@ Section Equivalence.
         rewrite H6; simpl in *.
         rewrite H16 in H15.
         apply haccessV_Some in H15.
-        destruct (haccessV uvs v). [assumption|].
-        elim H15; reflexivity.
-
+        destruct (haccessV uvs v).
+        { destruct (haccessO ifw v); discriminate. }
+        { elim H15; reflexivity. }
     - apply Forall_forall; intros oun ?.
       eapply Forall_In in H14; [|eassumption].
       eapply UNodeSt_upd_other_no_effect; try eassumption.
