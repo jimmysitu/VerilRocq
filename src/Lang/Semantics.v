@@ -346,6 +346,8 @@ Section Semantics.
           end.
 
         Fixpoint lvposfind (lv: @VExpr vid_t): trsOk hpath :=
+          (* TODO: lvposfind does not support range selects or concatenation lvalues yet
+             (e.g. VExprPriSelectConstRange / VExprPriSelectIdxRangeAdd/Sub / VExprPriConcat). *)
           match lv with
           | VExprId vid => (pty <- declfind vid; Sret pty)
           | VExprHier pe ce => (ppty <- lvposfind pe;
@@ -616,7 +618,8 @@ Section Semantics.
                                                  atrs <- trsVAssignV (VExprId ovid) v pty;
                                                  Sret atrs)
         | VNamedPortConnE vid oe => (vty <- List.find (vid_eqb vid) ovids |> TrsUndeclared ~> [];
-                                     pty <- lvposfind [] (VExprId vid);
+                                     (*pty <- lvposfind [] (VExprId vid);*)
+                                     pty <- lvposfind [] oe;
                                      ov <- haccessO outputs vid |> TrsUndriven ~> [];
                                      atrs <- trsVAssignV oe ov pty;
                                      Sret atrs)
@@ -668,8 +671,17 @@ Section Semantics.
     Notation "'iff_flops_' iff" := (snd iff) (at level 0).
 
     Definition iffupds (iff1 iff2: IFF): IFF :=
+      (** NOTE: We use [hupds] instead of [hmergeR] because [hupds] performs a
+       * recursive update, whereas [hmergeR] is flat. In a hierarchical design,
+       * [hupds] allows updating specific signals within a submodule without
+       * overwriting the entire submodule state.
+       *)
+      (*
       (hmergeR (iff_ifw_ iff1) (iff_ifw_ iff2),
         hmergeR (iff_flops_ iff1) (iff_flops_ iff2)).
+      *)
+      (hupds (iff_ifw_ iff1) (iff_ifw_ iff2),
+        hupds (iff_flops_ iff1) (iff_flops_ iff2)).
 
     Fixpoint trsVGenerateModuleItem (gmi: @VGenerateModuleItem vid_t) (cpos: hpath)
       (iff: IFF): trsOk IFF :=

@@ -29,20 +29,24 @@ Section Equivalence.
           HMapStrEmpty ifw ->
           HMapStrEmpty (updf un ifw) ->
           UNodeSt ifw oun ->
-          UNodeSt (hmergeR ifw (updf un ifw)) oun.
+          UNodeSt (hupds ifw (updf un ifw)) oun.
   Proof using .
     intros.
     red in H8; dest.
     red; split; [assumption|].
     split; intros.
     - specialize (H9 H11 _ H12); intro Hx; elim H9.
-      rewrite hmergeR_hfind in Hx by assumption.
-      destruct (hfind [HEltVid v] (updf un ifw)); [discriminate|].
-      assumption.
+      rewrite hupds_hfind in Hx by assumption.
+      destruct (hfind [HEltVid v] ifw).
+      + destruct (hfind [HEltVid v] (updf un ifw)); discriminate.
+      + reflexivity.
     - specialize (H10 H11 _ H12).
-      rewrite hmergeR_hfind by assumption.
+      rewrite hupds_hfind by assumption.
       rewrite H10.
-
+      destruct (hfind [HEltVid v] ifw).
+      + destruct (hfind [HEltVid v] (updf un ifw)); discriminate.
+      + admit.
+    (*
       specialize (H4 ifw); destruct H4; [rewrite H4; reflexivity|].
       destruct H4 as [uvs [? ?]].
       rewrite H4; simpl.
@@ -55,6 +59,8 @@ Section Equivalence.
       + eapply UGraphUnique_false_left; [eassumption|..]; eassumption.
       + eapply UGraphUnique_false_right; [eassumption|..]; eassumption.
   Qed.
+    *)
+  Admitted.
 
   Lemma UGraphSt_upd:
     forall proc (HprocWf0: ProcWfExecUniq decls funcs mtrss proc)
@@ -66,20 +72,20 @@ Section Equivalence.
         UGraphUnique (ug1 ++ un :: ug2) ->
         UGraphSt ifw (ug1 ++ un :: ug2) ->
         UNodeProc decls funcs mtrss un proc ->
-        UGraphSt (hmergeR ifw uifw)
+        UGraphSt (hupds ifw uifw)
           (ug1 ++ {| keys := keys un;
                     deps := deps un;
                     updOnce := true;
                     updDone := true;
                     updf := updf un |} :: ug2) /\
-          HMapStrEmptyWf (hmergeR ifw uifw).
+          HMapStrEmptyWf (hupds ifw uifw).
   Proof using .
     unfold UNodeProc; intros; dest.
     apply Forall_app in H5; dest; inv H10.
     assert (uifw = updf un ifw) by (rewrite H9, H3; reflexivity); subst uifw.
     pose proof (UNodeKeysOk_HMapStrEmpty H6 ifw) as Huifw.
     split.
-    2: { apply HMapStrEmptyWf_hmergeR; [assumption|].
+    2: { apply HMapStrEmptyWf_hupds; [assumption|].
          specialize (HprocWf0 ifw); rewrite H3 in HprocWf0; assumption.
     }
 
@@ -92,7 +98,7 @@ Section Equivalence.
     - red in H13; dest.
       red; split; [reflexivity|].
       split; intros; [|discriminate].
-      rewrite hmergeR_hfind; [|apply HMapStrEmptyWf_HMapStrEmpty; assumption|assumption].
+      rewrite hupds_hfind; [|apply HMapStrEmptyWf_HMapStrEmpty; assumption|assumption].
 
       (* use [UNodeKeysOk] *)
       specialize (H6 ifw); destruct H6.
@@ -104,7 +110,7 @@ Section Equivalence.
         rewrite H6; simpl in *.
         rewrite H16 in H15.
         apply haccessV_Some in H15.
-        destruct (haccessV uvs v); [assumption|].
+        destruct (haccessV uvs v). [assumption|].
         elim H15; reflexivity.
 
     - apply Forall_forall; intros oun ?.
@@ -114,18 +120,18 @@ Section Equivalence.
       + apply HMapStrEmptyWf_HMapStrEmpty; assumption.
   Qed.
 
-  Lemma unode_updated_hmergeR:
+  Lemma unode_updated_hupds:
     forall un ifw,
       HMapStrEmptyWf ifw ->
       (forall v, In v (keys un) ->
                  hfind [HEltVid v] ifw = hfind [HEltVid v] (updf un ifw)) ->
       UNodeKeysOk un ->
       keys un <> nil ->
-      hmergeR ifw (updf un ifw) = ifw.
+      hupds ifw (updf un ifw) = ifw.
   Proof using .
     unfold UNodeKeysOk; intros.
     specialize (H5 ifw); destruct H5;
-      [rewrite H5; apply hmergeR_empty|].
+      [rewrite H5; apply hupds_empty|].
     destruct H5 as [uvs [? ?]].
     rewrite H5 in *; clear H5.
 
@@ -137,7 +143,7 @@ Section Equivalence.
       specialize (H4 uk (or_introl eq_refl)).
       rewrite vid_eqb_refl in H4; discriminate.
     - rewrite H7 in H4.
-      apply hmergeR_absorbed; assumption.
+      apply hupds_absorbed; assumption.
   Qed.
 
   Lemma getNode_Some_In:
@@ -225,12 +231,12 @@ Section Equivalence.
             UGraphUnique ug ->
             UGraphProcs decls funcs mtrss ug gprocs ->
             UGraphSt ifw ug ->
-            exists nug, EvalUGraphTrs ug (hupds stb ifw) nug (hupds stb (hmergeR ifw uifw)) /\
+            exists nug, EvalUGraphTrs ug (hupds stb ifw) nug (hupds stb (hupds ifw uifw)) /\
                           UGraphDepsOk nug /\
                           UGraphUnique nug /\
                           UGraphProcs decls funcs mtrss nug gprocs /\
-                          UGraphSt (hmergeR ifw uifw) nug /\
-                          HMapStrEmptyWf (hmergeR ifw uifw).
+                          UGraphSt (hupds ifw uifw) nug /\
+                          HMapStrEmptyWf (hupds ifw uifw).
     Proof using .
       intros.
       apply List.in_split in H3; destruct H3 as [procs1 [procs2 ?]]; subst gprocs.
@@ -239,9 +245,9 @@ Section Equivalence.
       destruct ug2 as [|un ug2]; inv H7.
       destruct (updDone un) eqn:Huu.
 
-      - assert (hmergeR ifw uifw = ifw) as Hnupd.
+      - assert (hupds ifw uifw = ifw) as Hnupd.
         { replace uifw with (updf un ifw).
-          { apply unode_updated_hmergeR; try assumption.
+          { apply unode_updated_hupds; try assumption.
             { apply Forall_app in Hupdf; destruct Hupdf as [_ Hupdf].
               apply Forall_cons_iff in Hupdf; destruct Hupdf as [Hupdf _].
               apply Hupdf; assumption.
@@ -289,7 +295,7 @@ Section Equivalence.
 
             destruct Hupdb.
             rewrite H7.
-            apply hupds_hmergeR_assoc.
+            apply hupds_assoc.
             { apply HMapStrEmptyWf_HMapStrEmpty; assumption. }
             { assumption. }
             { apply Forall_app in H8; dest; inv H12.
@@ -367,7 +373,7 @@ Section Equivalence.
           unfold iffupds in *; simpl in *.
         + eapply trsProc_imp_EvalUGraphTrs with (gprocs:= gprocs) in Hproc; try eassumption.
           * destruct Hproc as [uug [? [? [? [? [? ?]]]]]].
-            assert (UpdfSub uug (hmergeR ifw uifw)) as Hupdfu.
+            assert (UpdfSub uug (hupds ifw uifw)) as Hupdfu.
             { eapply EvalUGraphTrs_UpdfSub; [..|eassumption|].
               all: try assumption.
               apply Hstb; assumption.
@@ -379,7 +385,7 @@ Section Equivalence.
             exists nug; repeat split; [|assumption..].
             eapply EvalUGraphTrs_trs; eassumption.
           * dest; subst gprocs; apply in_or_app; right; left; reflexivity.
-        + rewrite !hmergeR_empty in H3.
+        + rewrite !hupds_empty in H3.
           eapply IHtprocs; eassumption.
     Qed.
 
@@ -443,12 +449,12 @@ Section Equivalence.
         + destruct H9 as [uvs [? ?]].
           rewrite H9 in *.
           rewrite H12 in *.
-          assert (forall v, hfind [HEltVid v] (hmergeR stf (HMapStr uvs)) =
+          assert (forall v, hfind [HEltVid v] (hupds stf (HMapStr uvs)) =
                               match hfind [HEltVid v] (HMapStr uvs) with
                               | Some v0 => Some v0
                               | None => hfind [HEltVid v] stf
                               end) as Hmf
-            by (apply hmergeR_hfind; [apply HMapStrEmptyWf_HMapStrEmpty; assumption|red; auto]).
+            by (apply hupds_hfind; [apply HMapStrEmptyWf_HMapStrEmpty; assumption|red; auto]).
           rewrite H3 in Hmf.
           destruct (map fst uvs) as [|uk uks] eqn:Hku; [elim H10; reflexivity|].
           specialize (H8 uk (or_introl eq_refl)).

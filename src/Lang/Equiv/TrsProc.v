@@ -119,7 +119,7 @@ Section TrsProc.
       destruct (trsProcs _ _) eqn:Ht; [reflexivity|].
       exfalso; eapply trsProcs_never_fails; eassumption.
     - unfold iffupds; simpl.
-      rewrite !hmergeR_empty.
+      rewrite !hupds_empty.
       destruct iff; simpl; apply IHprocs1.
   Qed.
 
@@ -188,7 +188,7 @@ Section TrsProc.
   Fixpoint updMerge (upds: list State): State :=
     match upds with
     | nil => []
-    | upd :: tupds => hmergeR upd (updMerge tupds)
+    | upd :: tupds => hupds upd (updMerge tupds)
     end.
 
   Lemma updMerge_HMapStrEmpty:
@@ -197,7 +197,7 @@ Section TrsProc.
   Proof using .
     induction upds as [|upd upds]; simpl; intros; [auto; fail|].
     inv Hupds.
-    apply hmergeR_HMapStrEmpty; auto.
+    apply hupds_HMapStrEmpty; auto.
   Qed.
 
   Lemma updMerge_disj_ind:
@@ -208,7 +208,7 @@ Section TrsProc.
   Proof using .
     induction upds as [|iupd upds]; simpl; intros; [destruct upd; auto; fail|].
     inv Hupds.
-    apply HDisj_sym, HDisj_hmergeR_split.
+    apply HDisj_sym, HDisj_hupds_split.
     - assumption.
     - apply HDisj_sym, H3; left; reflexivity.
     - apply updMerge_HMapStrEmpty; assumption.
@@ -225,7 +225,7 @@ Section TrsProc.
   Proof using .
     induction upds1 as [|upd1 upds1]; simpl; intros; [auto; fail|].
     inv Hupds1.
-    apply HDisj_hmergeR_split.
+    apply HDisj_hupds_split.
     - assumption.
     - apply updMerge_disj_ind; try assumption.
       intros; apply H3; auto.
@@ -284,13 +284,13 @@ Section TrsProc.
       trsProcs procs (ifw, flops) = Sret (nifw, nflops) ->
       exists upds,
         TrsProcsUpd procs upds /\
-          nifw = hmergeR ifw (updMerge upds) /\
+          nifw = hupds ifw (updMerge upds) /\
           HMapStrEmpty (updMerge upds).
   Proof using .
     induction procs as [|proc procs]; simpl; intros.
     - inv H3; exists nil; repeat split.
       + constructor.
-      + simpl; rewrite hmergeR_empty; reflexivity.
+      + simpl; rewrite hupds_empty; reflexivity.
 
     - apply ProcsWfUpd_cons_inv in HprocsU; dest.
       apply ProcsWfDet_cons_inv in HprocsD; dest.
@@ -300,22 +300,23 @@ Section TrsProc.
         destruct H3 as [tupds ?]; dest; subst.
         exists (uifw :: tupds); repeat split.
         * econstructor; eassumption.
-        * simpl; apply hmergeR_assoc.
+        * simpl. rewrite <-hupds_assoc; [reflexivity|..].
           { apply H4 in Hproc; assumption. }
+          { exact H9. }
           { eapply updMerge_TrsProcsUpd_disj_ind; eassumption. }
         * apply updMerge_HMapStrEmpty; constructor.
           { apply H4 in Hproc; assumption. }
           { eapply TrsProcsUpd_HMapStrEmpty; eassumption. }
-      + rewrite !hmergeR_empty in H3.
+      + rewrite !hupds_empty in H3.
         apply IHprocs in H3; [|assumption..].
-        destruct H3 as [tupds ?]; dest; subst.
+        destruct H3 as [tupds [Hupds [Hnifw Hempty]]].
         exists ([] :: tupds); repeat split.
         * econstructor; eassumption.
-        * simpl; destruct (updMerge tupds); reflexivity.
+        * subst nifw; simpl; reflexivity.
         * apply updMerge_HMapStrEmpty; constructor.
           { red; auto. }
           { eapply TrsProcsUpd_HMapStrEmpty; eassumption. }
-  Qed.
+    Qed.
 
   Lemma trsProcs_upds_disj:
     forall procs1 procs2 (HprocsU: ProcsWfUpd (procs1 ++ procs2))
@@ -325,8 +326,8 @@ Section TrsProc.
       forall ifw2 flops2 nifw2 nflops2,
         trsProcs procs2 (ifw2, flops2) = Sret (nifw2, nflops2) ->
         exists uifw1 uifw2,
-          nifw1 = hmergeR ifw1 uifw1 /\ HMapStrEmpty uifw1 /\
-            nifw2 = hmergeR ifw2 uifw2 /\ HMapStrEmpty uifw2 /\
+          nifw1 = hupds ifw1 uifw1 /\ HMapStrEmpty uifw1 /\
+            nifw2 = hupds ifw2 uifw2 /\ HMapStrEmpty uifw2 /\
             HDisj uifw1 uifw2.
   Proof using .
     intros.
@@ -347,6 +348,7 @@ Section TrsProc.
     - eapply TrsProcsUpd_disj; eassumption.
   Qed.
 
+
   Lemma trsProcs_fp_app:
     forall procs1 procs2 (HprocsU: ProcsWfUpd (procs1 ++ procs2))
            (HprocsD: ProcsWfDet (procs1 ++ procs2))
@@ -364,8 +366,9 @@ Section TrsProc.
     eapply trsProcs_upds_disj with (procs1:= procs1) (procs2:= procs2) in Hi; [|eassumption..].
     destruct Hi as [uifw1 [uifw2 ?]]; dest; subst.
 
-    rewrite hmergeR_assoc in H6; [|assumption..].
-    apply eq_sym, hmergeR_absorbed_left in H6; [|assumption..].
+    rewrite <-hupds_assoc in H6; [|assumption..].
+    apply eq_sym in H6.
+    eapply hupds_absorbed_left in H6; [|assumption..].
     rewrite H6 in *.
     eexists; split; [reflexivity|eassumption].
   Qed.
@@ -378,7 +381,7 @@ Section TrsProc.
       forall proc,
         In proc procs ->
         match trsProc proc stf with
-        | Sret (pifw, pflops) => hmergeR stf pifw = stf
+        | Sret (pifw, pflops) => hupds stf pifw = stf
         | Fail _ => True
         end.
   Proof using .
