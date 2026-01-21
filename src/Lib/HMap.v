@@ -557,83 +557,83 @@ Section HMap.
 
     Lemma hupds_idempotent: forall h, HMapWf h -> hupds h h = h.
     Proof using .
-  assert (hbinUArr1_skip: forall k h hs1 hs2,
-    ~ In k (map fst hs1) ->
-    hbinUArr1 hupds hs1 ((k, h) :: hs2) = hbinUArr1 hupds hs1 hs2).
-  { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
-    simpl in Hnotin.
-    destruct (Z.eqb k' k) eqn:Hk.
-    - apply Z.eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
-    - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
-  }
-  assert (hbinUStr1_skip: forall k h hs1 hs2,
-    ~ In k (map fst hs1) ->
-    hbinUStr1 hupds hs1 ((k, h) :: hs2) = hbinUStr1 hupds hs1 hs2).
-  { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
-    simpl in Hnotin.
-    destruct (vid_eqb k' k) eqn:Hk.
-    - apply vid_eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
-    - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
-  }
-  apply (hmap_ind2 (fun h => HMapWf h -> hupds h h = h)).
-  - intros _. reflexivity.
-  - intros b _. simpl. reflexivity.
-  - intros hs IH Hwf.
-    inversion Hwf; subst; try discriminate.
-    match goal with
-    | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
-    end.
-    match goal with
-    | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
-    end.
-    simpl. f_equal.
-    unfold hbinUArr. rewrite hbinUArr2_refl_nil, app_nil_r.
-    assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
-    { clear -IH Hfor. revert IH.
-      induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
-        inversion IH as [|? ? IHhd IHtl]; subst.
-      - constructor.
-      - constructor.
-        + apply IHhd. assumption.
-        + apply IHfor'. assumption.
-    }
-    clear IH Hfor Hwf.
-    revert Hnodup Hforall_eq.
-    induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
-    inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
-    inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
-    simpl in Hh.
-    simpl. rewrite Z.eqb_refl. simpl. rewrite Hh. f_equal.
-    rewrite hbinUArr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
-    apply IHhs'; assumption.
-  - intros hs IH Hwf.
-    inversion Hwf; subst; try discriminate.
-    match goal with
-    | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
-    end.
-    match goal with
-    | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
-    end.
-    simpl. f_equal.
-    unfold hbinUStr. rewrite hbinUStr2_refl_nil, app_nil_r.
-    assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
-    { clear -IH Hfor. revert IH.
-      induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
-        inversion IH as [|? ? IHhd IHtl]; subst.
-      - constructor.
-      - constructor.
-        + apply IHhd. assumption.
-        + apply IHfor'. assumption.
-    }
-    clear IH Hfor Hwf.
-    revert Hnodup Hforall_eq.
-    induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
-    inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
-    inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
-    simpl in Hh.
-    simpl. rewrite vid_eqb_refl. simpl. rewrite Hh. f_equal.
-    rewrite hbinUStr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
-    apply IHhs'; assumption.
+      assert (hbinUArr1_skip: forall k h hs1 hs2,
+        ~ In k (map fst hs1) ->
+        hbinUArr1 hupds hs1 ((k, h) :: hs2) = hbinUArr1 hupds hs1 hs2).
+      { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+        simpl in Hnotin.
+        destruct (Z.eqb k' k) eqn:Hk.
+        - apply Z.eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+        - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+      }
+      assert (hbinUStr1_skip: forall k h hs1 hs2,
+        ~ In k (map fst hs1) ->
+        hbinUStr1 hupds hs1 ((k, h) :: hs2) = hbinUStr1 hupds hs1 hs2).
+      { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+        simpl in Hnotin.
+        destruct (vid_eqb k' k) eqn:Hk.
+        - apply vid_eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+        - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+      }
+      apply (hmap_ind2 (fun h => HMapWf h -> hupds h h = h)).
+      - intros _. reflexivity.
+      - intros b _. simpl. reflexivity.
+      - intros hs IH Hwf.
+        inversion Hwf; subst; try discriminate.
+        match goal with
+        | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
+        end.
+        match goal with
+        | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
+        end.
+        simpl. f_equal.
+        unfold hbinUArr. rewrite hbinUArr2_refl_nil, app_nil_r.
+        assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
+        { clear -IH Hfor. revert IH.
+          induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
+            inversion IH as [|? ? IHhd IHtl]; subst.
+          - constructor.
+          - constructor.
+            + apply IHhd. assumption.
+            + apply IHfor'. assumption.
+        }
+        clear IH Hfor Hwf.
+        revert Hnodup Hforall_eq.
+        induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
+        inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
+        inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
+        simpl in Hh.
+        simpl. rewrite Z.eqb_refl. simpl. rewrite Hh. f_equal.
+        rewrite hbinUArr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
+        apply IHhs'; assumption.
+      - intros hs IH Hwf.
+        inversion Hwf; subst; try discriminate.
+        match goal with
+        | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
+        end.
+        match goal with
+        | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
+        end.
+        simpl. f_equal.
+        unfold hbinUStr. rewrite hbinUStr2_refl_nil, app_nil_r.
+        assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
+        { clear -IH Hfor. revert IH.
+          induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
+            inversion IH as [|? ? IHhd IHtl]; subst.
+          - constructor.
+          - constructor.
+            + apply IHhd. assumption.
+            + apply IHfor'. assumption.
+        }
+        clear IH Hfor Hwf.
+        revert Hnodup Hforall_eq.
+        induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
+        inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
+        inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
+        simpl in Hh.
+        simpl. rewrite vid_eqb_refl. simpl. rewrite Hh. f_equal.
+        rewrite hbinUStr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
+        apply IHhs'; assumption.
     Qed.
     
     Lemma HSub_refl: forall h, HSub h h.
