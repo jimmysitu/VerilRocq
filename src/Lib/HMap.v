@@ -490,7 +490,20 @@ Section HMap.
     | HMapEmpty => True
     | _ => False
     end.
-
+  
+  (** Well-formedness: no duplicate keys at any level *)
+  Inductive HMapWf : hmap -> Prop :=
+    | Wf_Empty : HMapWf HMapEmpty
+    | Wf_Bits : forall b, HMapWf (HMapBits b)
+    | Wf_Arr : forall hs,
+        NoDup (List.map fst hs) ->
+        Forall (fun p => HMapWf (snd p)) hs ->
+        HMapWf (HMapArr hs)
+    | Wf_Str : forall hs,
+        NoDup (List.map fst hs) ->
+        Forall (fun p => HMapWf (snd p)) hs ->
+        HMapWf (HMapStr hs).
+  
   Section Facts.
 
     Section hmap_ind2.
@@ -528,6 +541,101 @@ Section HMap.
     Lemma hupds_bits: forall h b, hupds h (HMapBits b) = HMapBits b.
     Proof using . destruct h; reflexivity. Qed.
 
+    Lemma hbinUArr2_refl_nil: forall hs, hbinUArr2 hs hs = nil.
+    Proof using .
+      intros. apply filter_negb_existsb_nil.
+      intros. apply existsb_In with (a:=x); auto.
+      apply Z.eqb_refl.
+    Qed.
+
+    Lemma hbinUStr2_refl_nil: forall hs, hbinUStr2 hs hs = nil.
+    Proof using .
+      intros. apply filter_negb_existsb_nil.
+      intros. apply existsb_In with (a:=x); auto.
+      apply vid_eqb_refl.
+    Qed.
+
+    Lemma hupds_idempotent: forall h, HMapWf h -> hupds h h = h.
+    Proof using .
+  assert (hbinUArr1_skip: forall k h hs1 hs2,
+    ~ In k (map fst hs1) ->
+    hbinUArr1 hupds hs1 ((k, h) :: hs2) = hbinUArr1 hupds hs1 hs2).
+  { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+    simpl in Hnotin.
+    destruct (Z.eqb k' k) eqn:Hk.
+    - apply Z.eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+    - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+  }
+  assert (hbinUStr1_skip: forall k h hs1 hs2,
+    ~ In k (map fst hs1) ->
+    hbinUStr1 hupds hs1 ((k, h) :: hs2) = hbinUStr1 hupds hs1 hs2).
+  { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+    simpl in Hnotin.
+    destruct (vid_eqb k' k) eqn:Hk.
+    - apply vid_eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+    - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+  }
+  apply (hmap_ind2 (fun h => HMapWf h -> hupds h h = h)).
+  - intros _. reflexivity.
+  - intros b _. simpl. reflexivity.
+  - intros hs IH Hwf.
+    inversion Hwf; subst; try discriminate.
+    match goal with
+    | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
+    end.
+    match goal with
+    | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
+    end.
+    simpl. f_equal.
+    unfold hbinUArr. rewrite hbinUArr2_refl_nil, app_nil_r.
+    assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
+    { clear -IH Hfor. revert IH.
+      induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
+        inversion IH as [|? ? IHhd IHtl]; subst.
+      - constructor.
+      - constructor.
+        + apply IHhd. assumption.
+        + apply IHfor'. assumption.
+    }
+    clear IH Hfor Hwf.
+    revert Hnodup Hforall_eq.
+    induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
+    inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
+    inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
+    simpl in Hh.
+    simpl. rewrite Z.eqb_refl. simpl. rewrite Hh. f_equal.
+    rewrite hbinUArr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
+    apply IHhs'; assumption.
+  - intros hs IH Hwf.
+    inversion Hwf; subst; try discriminate.
+    match goal with
+    | Hnodup0: NoDup (map fst ?hs0) |- _ => rename Hnodup0 into Hnodup
+    end.
+    match goal with
+    | Hfor0: Forall (fun p => HMapWf (snd p)) ?hs0 |- _ => rename Hfor0 into Hfor
+    end.
+    simpl. f_equal.
+    unfold hbinUStr. rewrite hbinUStr2_refl_nil, app_nil_r.
+    assert (Hforall_eq: Forall (fun p => hupds (snd p) (snd p) = snd p) hs).
+    { clear -IH Hfor. revert IH.
+      induction Hfor as [|[k h] hs' Hwf' Hfor' IHfor']; intros IH;
+        inversion IH as [|? ? IHhd IHtl]; subst.
+      - constructor.
+      - constructor.
+        + apply IHhd. assumption.
+        + apply IHfor'. assumption.
+    }
+    clear IH Hfor Hwf.
+    revert Hnodup Hforall_eq.
+    induction hs as [|[k h] hs']; intros Hnodup Hforall_eq; simpl; [reflexivity|].
+    inversion Hnodup as [|? ? Hnotin Hnodup']; subst.
+    inversion Hforall_eq as [|? ? Hh Hforall_eq']; subst.
+    simpl in Hh.
+    simpl. rewrite vid_eqb_refl. simpl. rewrite Hh. f_equal.
+    rewrite hbinUStr1_skip with (k:=k) (h:=h) (hs1:=hs') (hs2:=hs'); [|assumption].
+    apply IHhs'; assumption.
+    Qed.
+    
     Lemma HSub_refl: forall h, HSub h h.
     Proof using . intros; red; intros; assumption. Qed.
 
@@ -1641,25 +1749,6 @@ Section HMap.
             }
     Qed.
 
-    Lemma hbinUStr1_hupds_absorbed:
-      forall vs uvs,
-        (forall vh, In vh vs ->
-                    match find (fun uvh => vid_eqb (fst vh) (fst uvh)) uvs with
-                    | Some uvh => hupds (snd vh) (snd uvh) = snd vh
-                    | _ => True
-                    end) ->
-        hbinUStr1 hupds vs uvs = vs.
-    Proof using .
-      induction vs as [|[vk vv] vs]; simpl; intros; [reflexivity|].
-      f_equal.
-      - f_equal.
-        specialize (H2 (vk, vv) (or_introl eq_refl)); simpl in H2.
-        destruct (find _ uvs); [|reflexivity].
-        apply H2.
-      - apply IHvs.
-        intros; apply H2; right; assumption.
-    Qed.
-
     Lemma haccessV_KeysUnique:
       forall vs,
         KeysUnique (List.map fst vs) ->
@@ -1789,6 +1878,25 @@ Section HMap.
       eapply hmergeR_absorbed_left_str; eassumption.
     Qed.
     
+    Lemma hbinUStr1_hupds_absorbed:
+      forall vs uvs,
+        (forall vh, In vh vs ->
+                    match find (fun uvh => vid_eqb (fst vh) (fst uvh)) uvs with
+                    | Some uvh => hupds (snd vh) (snd uvh) = snd vh
+                    | _ => True
+                    end) ->
+        hbinUStr1 hupds vs uvs = vs.
+    Proof using .
+      induction vs as [|[vk vv] vs]; simpl; intros; [reflexivity|].
+      f_equal.
+      - f_equal.
+        specialize (H2 (vk, vv) (or_introl eq_refl)); simpl in H2.
+        destruct (find _ uvs); [|reflexivity].
+        apply H2.
+      - apply IHvs.
+        intros; apply H2; right; assumption.
+    Qed.
+    
     Lemma hupds_absorbed_left_str:
       forall hs1 hs2 hs3,
         HDisj (HMapStr hs2) (HMapStr hs3) ->
@@ -1828,40 +1936,6 @@ Section HMap.
       eapply hupds_absorbed_left_str; eassumption.
     Qed.
     
-    Lemma hupds_id: forall h, hupds h h = h.
-    Proof using .
-      induction h using hmap_ind2; simpl; intros; auto.
-      - f_equal.
-        unfold hbinUArr. unfold hbinUArr2.
-        rewrite filter_negb_existsb_nil.
-        + rewrite app_nil_r.
-          revert H2.
-          induction hs as [|[k v] hs]; simpl; intros; [reflexivity|].
-          inversion H2 as [|? ? Hhead Htail]; subst.
-          rewrite Z.eqb_refl; simpl.
-          f_equal.
-          { simpl in Hhead.
-            apply (f_equal (fun h => (k, h))).
-            exact Hhead. }
-          { (* TODO: requires a no-duplicate-keys invariant for arrays. *)
-            admit. }
-        + intros [k v] Hin. apply existsb_In with (k, v); [assumption|apply Z.eqb_refl].
-      - f_equal.
-        unfold hbinUStr, hbinUStr2.
-        rewrite filter_negb_existsb_nil.
-        + rewrite app_nil_r.
-          revert H2.
-          induction hs as [|[v h] hs]; simpl; intros; [reflexivity|].
-          inversion H2 as [|? ? Hhead Htail]; subst.
-          rewrite vid_eqb_refl; simpl.
-          f_equal.
-          { simpl in Hhead.
-            apply (f_equal (fun h0 => (v, h0))).
-            exact Hhead. }
-          { (* TODO: requires a no-duplicate-keys invariant for structs. *)
-            admit. }
-        + intros [v h] Hin. apply existsb_In with (v, h); [assumption|apply vid_eqb_refl].
-    Admitted.
 
     Lemma hupds_absorbed:
       forall vs,
@@ -1879,15 +1953,17 @@ Section HMap.
         destruct (haccessV vs v) eqn:Hvs, (haccessV uvs v) eqn:Huvs; try discriminate.
         apply haccessV_In in Huvs; [|assumption].
         elim Huvs.
+
       - intros.
         destruct (find _ uvs) as [[uv uh]|] eqn:Huf; [|auto; fail].
         destruct vh as [v h]; simpl in *.
         apply haccessV_find_Some in Huf; dest; simpl in *; subst uv.
-        specialize (H3 v ltac:(apply haccessV_In; congruence)).
-        rewrite (haccessV_KeysUnique _ H2 _ _ H4) in H3.
+        assert (In v (map fst uvs)) as Hin by (apply haccessV_In; congruence).
+        specialize (H3 _ Hin).
         rewrite H6 in H3.
-        inv H3.
-        apply hupds_id.
+        apply haccessV_KeysUnique in H4; [|assumption].
+        rewrite H4 in H3.
+        inv H3. reflexivity.
     Qed.
     
     Lemma HDisj_hupds_split:
