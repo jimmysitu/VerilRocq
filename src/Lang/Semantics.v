@@ -618,7 +618,11 @@ Section Semantics.
                                                  atrs <- trsVAssignV (VExprId ovid) v pty;
                                                  Sret atrs)
         | VNamedPortConnE vid oe => (vty <- List.find (vid_eqb vid) ovids |> TrsUndeclared ~> [];
-                                     (*pty <- lvposfind [] (VExprId vid);*)
+                                     (* Use [oe] (parent expression) instead of [vid] (child port)
+                                        to correctly find the destination path in the parent,
+                                        supporting complex L-values like bit-selects (e.g. .sum(sum[0])).
+                                     *)
+                                     (*  pty <- lvposfind [] (VExprId vid); *)
                                      pty <- lvposfind [] oe;
                                      ov <- haccessO outputs vid |> TrsUndriven ~> [];
                                      atrs <- trsVAssignV oe ov pty;
@@ -782,7 +786,11 @@ Section Semantics.
       (oiff: trsOk IFF): (State * State) (* "updated" flop state * outputs *) :=
       match oiff with
       | Sret iff => let (ins, outs) := getIOIds m in
-                    (iff_flops_ iff, hfilter outs (iff_ifw_ iff))
+                    (* Get original outputs *)
+                    let raw_outputs := hfilter outs (iff_ifw_ iff) in
+                    (* Normalize outputs *)
+                    let norm_outputs := hnorm_fields outs raw_outputs in
+                    (iff_flops_ iff, norm_outputs)
       | Fail _ => ([], [])
       end.
 

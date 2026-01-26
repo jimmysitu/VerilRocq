@@ -63,11 +63,14 @@ End Vid.
 Class array_ops hv :=
   { array_select: list (Z * hv) -> Z (*index*) -> hv;
     array_range: list (Z * hv) -> Z (* msb start *) -> Z (* lsb end *) -> list (Z * hv);
+    array_pack: list (Z * hv) -> SZ; 
   }.
 
 Section HMap.
   Context `{sz_ops}.
   Context `{vid_ops}.
+
+  Import SZNotations.
 
   (*! Hierarchical finite maps *)
 
@@ -139,6 +142,29 @@ Section HMap.
     | HMapBits b => Some (HMapBits (sz_range b (sz_norm msbi) (sz_norm lsbi)))
     | HMapArr vs => Some (HMapArr (array_range vs (sz_norm msbi) (sz_norm lsbi)))
     | _ => None
+    end.
+
+  Definition hpackA (vs: list (Z * hmap)): SZ :=
+    let (final_val, final_wid) :=
+      @List.fold_left (Z * Z) (Z * hmap) (fun '(acc_v, acc_w) '(idx, sub_h) =>
+        match sub_h with
+        | HMapBits sub_b => 
+            let val := szNormZ sub_b in
+            let val_shifted := Z.shiftl val idx in
+            let new_v := Z.lor acc_v val_shifted in
+            let new_w := Z.max acc_w (idx + (szof sub_b)) in
+            (new_v, new_w)
+        | _ => (acc_v, acc_w)
+        end
+      ) vs (0%Z, 0%Z)
+    in
+    #{final_val, final_wid, false}.
+
+  Definition hpack (h: hmap): SZ :=
+    match h with
+    | HMapBits b => b
+    | HMapArr vs => array_pack vs 
+    | _ => sz_zero
     end.
 
   Definition harr (h: hmap): list (Z * hmap) :=
@@ -248,7 +274,7 @@ Section HMap.
     | cons (HEltInd i) np => hsingle np (HMapArr [(sz_norm i, v)])
     | cons (HEltVid i) np => hsingle np (HMapStr [(i, v)])
     end.
-
+  
   (** Equivalence w.r.t. indices and fields *)
 
   Definition HSub (h1 h2: hmap): Prop :=
@@ -462,6 +488,21 @@ Section HMap.
     | HMapStr str => HMapStr (hfilterStr fl str)
     | _ => h
     end.
+  
+  (** * hnorm_fields:
+  * Normalize specific fields in the state to their canonical flat representation (HMapBits).
+  * This eliminates structural differences caused by bit-slicing (HMapArr) during evaluation.
+  *)
+  Definition hnorm_fields (ids: list vid_t) (h: hmap): hmap :=
+  List.fold_left (fun acc_h id =>
+      let p := [HEltVid id] in
+      match hfind p acc_h with
+      | Some v => 
+          (* 使用 hpack/array_pack 将结构归一化为数值，并重新封装 *)
+          hupds acc_h (hsingle p (HMapBits (hpack v)))
+      | None => acc_h
+      end
+  ) ids h.
 
   Definition HMapStrEmpty (h: hmap): Prop :=
     match h with
@@ -555,26 +596,32 @@ Section HMap.
       apply vid_eqb_refl.
     Qed.
 
+    Lemma hbinUArr1_skip:
+      forall k h hs1 hs2,
+        ~ In k (map fst hs1) ->
+        hbinUArr1 hupds hs1 ((k, h) :: hs2) = hbinUArr1 hupds hs1 hs2.
+    Proof using .
+      induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+      simpl in Hnotin.
+      destruct (Z.eqb k' k) eqn:Hk.
+      - apply Z.eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+      - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+    Qed.
+
+    Lemma hbinUStr1_skip:
+      forall k h hs1 hs2,
+        ~ In k (map fst hs1) ->
+        hbinUStr1 hupds hs1 ((k, h) :: hs2) = hbinUStr1 hupds hs1 hs2.
+    Proof using .
+      induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
+      simpl in Hnotin.
+      destruct (vid_eqb k' k) eqn:Hk.
+      - apply vid_eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
+      - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
+    Qed.
+
     Lemma hupds_idempotent: forall h, HMapWf h -> hupds h h = h.
     Proof using .
-      assert (hbinUArr1_skip: forall k h hs1 hs2,
-        ~ In k (map fst hs1) ->
-        hbinUArr1 hupds hs1 ((k, h) :: hs2) = hbinUArr1 hupds hs1 hs2).
-      { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
-        simpl in Hnotin.
-        destruct (Z.eqb k' k) eqn:Hk.
-        - apply Z.eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
-        - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
-      }
-      assert (hbinUStr1_skip: forall k h hs1 hs2,
-        ~ In k (map fst hs1) ->
-        hbinUStr1 hupds hs1 ((k, h) :: hs2) = hbinUStr1 hupds hs1 hs2).
-      { induction hs1 as [|[k' h'] hs1']; simpl; intros hs2 Hnotin; [reflexivity|].
-        simpl in Hnotin.
-        destruct (vid_eqb k' k) eqn:Hk.
-        - apply vid_eqb_eq in Hk; subst. exfalso. apply Hnotin. simpl; left; reflexivity.
-        - f_equal. apply IHhs1'. intro Hin. apply Hnotin. simpl; right; assumption.
-      }
       apply (hmap_ind2 (fun h => HMapWf h -> hupds h h = h)).
       - intros _. reflexivity.
       - intros b _. simpl. reflexivity.
@@ -1940,16 +1987,17 @@ Section HMap.
     Lemma hupds_absorbed:
       forall vs,
         KeysUnique (List.map fst vs) ->
+        Forall (fun p => HMapWf (snd p)) vs ->
         forall uvs,
           (forall v, In v (map fst uvs) -> hfind [HEltVid v] (HMapStr vs) = hfind [HEltVid v] (HMapStr uvs)) ->
           hupds (HMapStr vs) (HMapStr uvs) = HMapStr vs.
     Proof using .
-      intros; simpl; f_equal.
+      intros vs Hkeys Hwf uvs Heq; simpl; f_equal.
       unfold hbinUStr.
       rewrite hbinUStr1_hupds_absorbed.
       - rewrite hbinUStr2_nil_1; [apply app_nil_r|].
         simpl in *; intros.
-        specialize (H3 _ H4).
+        specialize (Heq _ H2).
         destruct (haccessV vs v) eqn:Hvs, (haccessV uvs v) eqn:Huvs; try discriminate.
         apply haccessV_In in Huvs; [|assumption].
         elim Huvs.
@@ -1957,13 +2005,21 @@ Section HMap.
       - intros.
         destruct (find _ uvs) as [[uv uh]|] eqn:Huf; [|auto; fail].
         destruct vh as [v h]; simpl in *.
+        assert (Hin_vh : In (v, h) vs) by assumption.
         apply haccessV_find_Some in Huf; dest; simpl in *; subst uv.
         assert (In v (map fst uvs)) as Hin by (apply haccessV_In; congruence).
-        specialize (H3 _ Hin).
-        rewrite H6 in H3.
-        apply haccessV_KeysUnique in H4; [|assumption].
-        rewrite H4 in H3.
-        inv H3. reflexivity.
+        specialize (Heq _ Hin).
+        rewrite H4 in Heq.
+        apply haccessV_KeysUnique in H2; [|assumption].
+        rewrite H2 in Heq.
+        inv Heq. subst.
+        assert (Hwf_uh : HMapWf uh).
+        { pose proof (proj1 (Forall_forall (fun p => HMapWf (snd p)) vs) Hwf) as Hwf_in.
+          specialize (Hwf_in (v, uh) Hin_vh).
+          simpl in Hwf_in.
+          exact Hwf_in.
+        }
+        apply hupds_idempotent; assumption.
     Qed.
     
     Lemma HDisj_hupds_split:
@@ -2091,5 +2147,6 @@ End HMapNotations.
 
 #[local] Instance hmap_array_ops `{vid_t_c}: array_ops hmap :=
   { array_select := hselectA;
-    array_range := hrangeA
+    array_range := hrangeA;
+    array_pack  := hpackA;
   }.
