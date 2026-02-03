@@ -53,7 +53,7 @@ Inductive vid :=
 | DCACHE_SIZE | dmem
 | req_data | st_data | st_read_data
 
-| icache_a
+| icache_a | u_icache_a
 | int_resp_vld | int_resp
 
 | dcache_a
@@ -145,6 +145,7 @@ Module Notations.
   Notation "'icache'" := icache (in custom ce_expr).
   Notation "'dcache'" := dcache (in custom ce_expr).
   Notation "'icache_a'" := icache_a (in custom ce_expr).
+  Notation "'u_icache_a'" := u_icache_a (in custom ce_expr).
   Notation "'dcache_a'" := dcache_a (in custom ce_expr).
 
   Notation "'ADDR_SIZE'" := ADDR_SIZE (in custom ce_expr).

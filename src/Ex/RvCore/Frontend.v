@@ -78,7 +78,7 @@ module frontend
   end
 
   (* imem *)
-  icache_a icache_a(.clk(clk),
+  icache_a u_icache_a (.clk(clk),
                     .flush(flush),
                     .rst_n(rst_n),
                     .imem_req_rdy(imem_req_rdy),
@@ -221,7 +221,7 @@ endmodule].
           inst_d2e_v <- sfind inst_d2e state;
           rsv1_v <- sfind rsv1 state;
           rsv2_v <- sfind rsv2 state;
-          icache_a_s <- sfind icache_a state;
+          icache_a_s <- sfind u_icache_a state;
           icache_a_v <- from_state (A := ICacheA.Flops) icache_a_s;
             Sret {|
               pc_f2d_v := hbits pc_f2d_v;
@@ -251,7 +251,7 @@ endmodule].
                     (inst_d2e, HMapBits inst_d2e_v);
                     (rsv1, HMapBits rsv1_v);
                     (rsv2, HMapBits rsv2_v);
-                    (icache_a, to_state icache_a_v)]
+                    (u_icache_a, to_state icache_a_v)]
           end
     |}.
 
@@ -286,7 +286,7 @@ endmodule].
     Definition update_to_state (upds: Updates): State :=
       HMapStr [(pc_f2d_vld, upds.(pc_f2d_vld_update));
                (pc_f2d, upds.(pc_f2d_update));
-               (icache_a, ICacheA.update_to_state upds.(icache_a_update));
+               (u_icache_a, ICacheA.update_to_state upds.(icache_a_update));
                (d2e_vld, upds.(d2e_vld_update));
                (pc_d2e, upds.(pc_d2e_update));
                (inst_d2e, upds.(inst_d2e_update));
@@ -306,6 +306,8 @@ endmodule].
 
     Import ListNotations.
     Import HMapNotations.
+
+
 
     Definition trs_structured_sigT: {trs: forall (inputs: Inputs) (flops: Flops), (Updates * Outputs) |
       is_module_trs M.m fmapEmpty etrs Inputs Flops (to_unstructured_trs update_to_state output_to_state trs)
